@@ -20,7 +20,7 @@ type lookupCacheElement struct {
 	index int
 }
 
-var cache [4096]lookupCacheElement
+var cache [32768]lookupCacheElement
 
 func initializeCache() {
 	for i := range cache {
@@ -30,7 +30,7 @@ func initializeCache() {
 
 func cachedIndex(p color.Palette, c color.Color) int {
 	r, g, b, _ := c.RGBA()
-	ci := (r&15)<<8 + (g&15)<<4 + b&15
+	ci := (r&31)<<10 + (g&31)<<5 + b&31
 	if (cache[ci].index != -1) && (cache[ci].c == c) {
 		return cache[ci].index
 	}
