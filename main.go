@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"image"
+	"image/color"
 	"image/color/palette"
 	"image/gif"
 	"image/png"
@@ -13,6 +14,30 @@ import (
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+
+type lookupCacheElement struct {
+	c     color.Color
+	index int
+}
+
+var cache [4096]lookupCacheElement
+
+func initializeCache() {
+	for i := range cache {
+		cache[i].index = -1
+	}
+}
+
+func cachedIndex(p color.Palette, c color.Color) int {
+	r, g, b, _ := c.RGBA()
+	ci := (r&15)<<8 + (g&15)<<4 + b&15
+	if (cache[ci].index != -1) && (cache[ci].c == c) {
+		return cache[ci].index
+	}
+	cache[ci].index = p.Index(c)
+	cache[ci].c = c
+	return cache[ci].index
+}
 
 func main() {
 	flag.Parse()
@@ -47,10 +72,11 @@ func main() {
 
 	p := image.NewPaletted(image.Rect(0, 0, src.Bounds().Max.X-src.Bounds().Min.X, src.Bounds().Max.Y-src.Bounds().Min.Y), palette.WebSafe)
 
+	initializeCache()
 	for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {
 		bi := p.Stride * y
 		for x := src.Bounds().Min.X; x < src.Bounds().Max.X; x++ {
-			p.Pix[bi+x] = uint8(p.Palette.Index(src.At(x, y)))
+			p.Pix[bi+x] = uint8(cachedIndex(p.Palette, src.At(x, y)))
 		}
 	}
 
