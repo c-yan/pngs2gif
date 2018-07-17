@@ -30,7 +30,7 @@ func getIndex(name string) int {
 	return i
 }
 
-func listFiles(path string, startIndex int) ([]string, error) {
+func listFileNames(path string) ([]string, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -38,13 +38,33 @@ func listFiles(path string, startIndex int) ([]string, error) {
 
 	result := make([]string, 0, len(files))
 	for _, file := range files {
-		name := file.Name()
-		if validateFileName(name, startIndex) {
-			result = append(result, name)
+		result = append(result, file.Name())
+	}
+	return result, nil
+}
+
+func filterFileNames(fileNames []string, startIndex int) []string {
+	result := make([]string, 0, len(fileNames))
+	for _, fileName := range fileNames {
+		if validateFileName(fileName, startIndex) {
+			result = append(result, fileName)
 		}
 	}
+	return result
+}
 
-	sort.Slice(result, func(i, j int) bool { return getIndex(result[i]) < getIndex(result[j]) })
+func numericalSortFileNames(fileNames []string) {
+	sort.Slice(fileNames, func(i, j int) bool { return getIndex(fileNames[i]) < getIndex(fileNames[j]) })
+}
+
+func listTargetFileNames(path string, startIndex int) ([]string, error) {
+	fileNames, err := listFileNames(path)
+	if err != nil {
+		return nil, err
+	}
+
+	result := filterFileNames(fileNames, startIndex)
+	numericalSortFileNames(result)
 
 	return result, nil
 }

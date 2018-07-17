@@ -54,12 +54,12 @@ func main() {
 
 	inputDir := "wara"
 	startIndex := 13
-	files, err := listFiles(inputDir, startIndex)
+	fileNames, err := listTargetFileNames(inputDir, startIndex)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	in, err := os.Open(filepath.Join(inputDir, files[0]))
+	in, err := os.Open(filepath.Join(inputDir, fileNames[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
