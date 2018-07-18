@@ -4,7 +4,6 @@ import (
 	"flag"
 	"image"
 	"image/color"
-	"image/color/palette"
 	"image/gif"
 	"image/png"
 	"log"
@@ -72,7 +71,7 @@ func main() {
 
 	collectHistogram(src)
 
-	p := image.NewPaletted(image.Rect(0, 0, src.Bounds().Max.X-src.Bounds().Min.X, src.Bounds().Max.Y-src.Bounds().Min.Y), palette.WebSafe)
+	p := image.NewPaletted(image.Rect(0, 0, src.Bounds().Max.X-src.Bounds().Min.X, src.Bounds().Max.Y-src.Bounds().Min.Y), generatePalette())
 
 	initializeCache()
 	for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {

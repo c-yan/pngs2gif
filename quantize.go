@@ -1,6 +1,10 @@
 package main
 
-import "image"
+import (
+	"image"
+	"image/color"
+	"image/color/palette"
+)
 
 var histogram [256][256][256]int64
 
@@ -11,4 +15,8 @@ func collectHistogram(i image.Image) {
 			histogram[r>>16][g>>16][b>>16]++
 		}
 	}
+}
+
+func generatePalette() []color.Color {
+	return palette.WebSafe
 }
