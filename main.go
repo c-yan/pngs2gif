@@ -27,11 +27,15 @@ func main() {
 	}
 
 	inputDir := "wara"
-	startIndex := 13
-	fileNames, err := listTargetFileNames(inputDir, startIndex)
+	startFileIndex := 13
+	framesPerSec := 24
+	fileNames, err := listTargetFileNames(inputDir, startFileIndex)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	prevFrameIndex := 0
+	currentFrameIndex := 0
 
 	in, err := os.Open(filepath.Join(inputDir, fileNames[0]))
 	if err != nil {
@@ -60,7 +64,9 @@ func main() {
 	dst.Image = make([]*image.Paletted, 1)
 	dst.Image[0] = p
 	dst.Delay = make([]int, 1)
-	dst.Delay[0] = 0
+	dst.Delay[0] = (currentFrameIndex * 100 / framesPerSec) - (prevFrameIndex * 100 / framesPerSec)
+	prevFrameIndex = currentFrameIndex
+	currentFrameIndex++
 
 	out, err := os.Create(inputDir + ".gif")
 	if err != nil {
