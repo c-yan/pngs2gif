@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"image"
-	"image/color"
 	"image/gif"
 	"image/png"
 	"log"
@@ -13,30 +12,6 @@ import (
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-
-type lookupCacheElement struct {
-	c     color.Color
-	index int
-}
-
-var cache [32768]lookupCacheElement
-
-func initializeCache() {
-	for i := range cache {
-		cache[i].index = -1
-	}
-}
-
-func cachedIndex(p color.Palette, c color.Color) int {
-	r, g, b, _ := c.RGBA()
-	ci := (r&31)<<10 + (g&31)<<5 + b&31
-	if (cache[ci].index != -1) && (cache[ci].c == c) {
-		return cache[ci].index
-	}
-	cache[ci].index = p.Index(c)
-	cache[ci].c = c
-	return cache[ci].index
-}
 
 func main() {
 	flag.Parse()
