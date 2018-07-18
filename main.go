@@ -70,6 +70,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	collectHistogram(src)
+
 	p := image.NewPaletted(image.Rect(0, 0, src.Bounds().Max.X-src.Bounds().Min.X, src.Bounds().Max.Y-src.Bounds().Min.Y), palette.WebSafe)
 
 	initializeCache()
