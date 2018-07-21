@@ -53,10 +53,8 @@ func main() {
 	initializeCache()
 
 	var dst gif.GIF
-	dst.Image = make([]*image.Paletted, 1)
-	dst.Image[0] = p
-	dst.Delay = make([]int, 1)
-	dst.Delay[0] = (currentFrameIndex * 100 / framesPerSec) - (prevFrameIndex * 100 / framesPerSec)
+	dst.Image = append(dst.Image, generatePalettedImage(src, palette))
+	dst.Delay = append(dst.Delay, (currentFrameIndex*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
 	prevFrameIndex = currentFrameIndex
 	currentFrameIndex++
 
