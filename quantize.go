@@ -44,3 +44,14 @@ func cachedIndex(p color.Palette, c color.Color) int {
 	cache[ci].c = c
 	return cache[ci].index
 }
+
+func generatePalettedImage(i image.Image, p []color.Color) *image.Paletted {
+	result := image.NewPaletted(image.Rect(0, 0, i.Bounds().Max.X-i.Bounds().Min.X, i.Bounds().Max.Y-i.Bounds().Min.Y), p)
+	for y := i.Bounds().Min.Y; y < i.Bounds().Max.Y; y++ {
+		bi := result.Stride * y
+		for x := i.Bounds().Min.X; x < i.Bounds().Max.X; x++ {
+			result.Pix[bi+x] = uint8(cachedIndex(result.Palette, i.At(x, y)))
+		}
+	}
+	return result
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"image"
 	"image/gif"
 	"image/png"
 	"log"
@@ -49,16 +48,9 @@ func main() {
 	}
 
 	collectHistogram(src)
-
-	p := image.NewPaletted(image.Rect(0, 0, src.Bounds().Max.X-src.Bounds().Min.X, src.Bounds().Max.Y-src.Bounds().Min.Y), generatePalette())
+	palette := generatePalette()
 
 	initializeCache()
-	for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {
-		bi := p.Stride * y
-		for x := src.Bounds().Min.X; x < src.Bounds().Max.X; x++ {
-			p.Pix[bi+x] = uint8(cachedIndex(p.Palette, src.At(x, y)))
-		}
-	}
 
 	var dst gif.GIF
 	dst.Image = make([]*image.Paletted, 1)
