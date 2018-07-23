@@ -24,7 +24,7 @@ func squareDiff(b1, b2 uint8) int {
 	return t * t
 }
 
-func (p byteQuadPalette) Index(c byteQuad) int {
+func (p byteQuadPalette) fastIndex(c byteQuad) int {
 	bestDiff := math.MaxInt64
 	bestIndex := -1
 	for i, t := range p {
@@ -35,6 +35,15 @@ func (p byteQuadPalette) Index(c byteQuad) int {
 		}
 	}
 	return bestIndex
+}
+
+func (p byteQuadPalette) index(c color.Color) int {
+	var bq byteQuad
+	r, g, b, _ := c.RGBA()
+	bq[0] = uint8(r >> 8)
+	bq[1] = uint8(g >> 8)
+	bq[2] = uint8(b >> 8)
+	return p.fastIndex(bq)
 }
 
 type histogramElement struct {
@@ -98,7 +107,7 @@ func calcNewColor(cluster []histogramElement) byteQuad {
 func optimizePalette(p byteQuadPalette) []byteQuad {
 	clusters := make([][]histogramElement, len(p))
 	for _, he := range histogramElements {
-		i := p.Index(he.color)
+		i := p.index(he.color)
 		clusters[i] = append(clusters[i], he)
 	}
 	result := make([]byteQuad, 0, len(p))
@@ -127,7 +136,7 @@ func getWebSafePalette() byteQuadPalette {
 	return result[:]
 }
 
-func generatePalette() []color.Color {
+func generatePalette() []byteQuad {
 	histogramElements = make([]histogramElement, 0, colors)
 	for r := 0; r < 256; r++ {
 		for g := 0; g < 256; g++ {
@@ -138,12 +147,7 @@ func generatePalette() []color.Color {
 			}
 		}
 	}
-	p := optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
-	result := make([]color.Color, len(p))
-	for i := range p {
-		result[i] = p[i]
-	}
-	return result
+	return optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
 }
 
 type lookupCacheElement struct {
@@ -159,23 +163,31 @@ func initializeCache() {
 	}
 }
 
-func cachedIndex(p color.Palette, c color.Color) int {
+func cachedIndex(p byteQuadPalette, c color.Color) int {
 	r, g, b, _ := c.RGBA()
 	ci := (r&31)<<10 + (g&31)<<5 + b&31
 	if (cache[ci].index != -1) && (cache[ci].c == c) {
 		return cache[ci].index
 	}
-	cache[ci].index = p.Index(c)
+	cache[ci].index = p.index(c)
 	cache[ci].c = c
 	return cache[ci].index
 }
 
-func generatePalettedImage(i image.Image, p []color.Color) *image.Paletted {
-	result := image.NewPaletted(image.Rect(0, 0, i.Bounds().Max.X-i.Bounds().Min.X, i.Bounds().Max.Y-i.Bounds().Min.Y), p)
+func newPalette(p []byteQuad) color.Palette {
+	result := make([]color.Color, len(p))
+	for i := range p {
+		result[i] = p[i]
+	}
+	return result
+}
+
+func generatePalettedImage(i image.Image, p []byteQuad) *image.Paletted {
+	result := image.NewPaletted(image.Rect(0, 0, i.Bounds().Max.X-i.Bounds().Min.X, i.Bounds().Max.Y-i.Bounds().Min.Y), newPalette(p))
 	for y := i.Bounds().Min.Y; y < i.Bounds().Max.Y; y++ {
 		bi := result.Stride * y
 		for x := i.Bounds().Min.X; x < i.Bounds().Max.X; x++ {
-			result.Pix[bi+x] = uint8(cachedIndex(result.Palette, i.At(x, y)))
+			result.Pix[bi+x] = uint8(cachedIndex(p, i.At(x, y)))
 		}
 	}
 	return result
