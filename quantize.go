@@ -6,19 +6,88 @@ import (
 	"image/color/palette"
 )
 
-var histogram [256][256][256]int64
+type histogramElement struct {
+	color    color.RGBA
+	quantity int64
+	weightR  int64
+	weightG  int64
+	weightB  int64
+}
+
+func newHistogramElement(r, g, b int, quantity int64) (he histogramElement) {
+	he.color = color.RGBA{
+		R: uint8(r),
+		G: uint8(g),
+		B: uint8(b),
+		A: 255,
+	}
+	he.quantity = quantity
+	he.weightR = int64(r) * quantity
+	he.weightG = int64(g) * quantity
+	he.weightB = int64(b) * quantity
+	return he
+}
+
+var (
+	colors            int64
+	histogram         [256][256][256]int64
+	histogramElements []histogramElement
+)
 
 func collectHistogram(i image.Image) {
 	for y := i.Bounds().Min.Y; y < i.Bounds().Max.Y; y++ {
 		for x := i.Bounds().Min.X; x < i.Bounds().Max.X; x++ {
 			r, g, b, _ := i.At(x, y).RGBA()
-			histogram[r>>8][g>>8][b>>8]++
+			r >>= 8
+			g >>= 8
+			b >>= 8
+			if histogram[r][g][b] == 0 {
+				colors++
+			}
+			histogram[r][g][b]++
 		}
 	}
 }
 
+func optimizePalette(p color.Palette) []color.Color {
+	clusters := make([][]histogramElement, len(p))
+	for _, he := range histogramElements {
+		i := p.Index(he.color)
+		clusters[i] = append(clusters[i], he)
+	}
+	result := make([]color.Color, 0, len(p))
+	for _, cluster := range clusters {
+		if len(cluster) == 0 {
+			continue
+		}
+		var weightRSum, weightGSum, weightBSum, quantitySum int64
+		for _, he := range cluster {
+			weightRSum += he.weightR
+			weightGSum += he.weightG
+			weightBSum += he.weightB
+			quantitySum += he.quantity
+		}
+		result = append(result, color.RGBA{
+			R: uint8(weightRSum / quantitySum),
+			G: uint8(weightGSum / quantitySum),
+			B: uint8(weightBSum / quantitySum),
+		})
+	}
+	return result
+}
+
 func generatePalette() []color.Color {
-	return palette.WebSafe
+	histogramElements = make([]histogramElement, 0, colors)
+	for r := 0; r < 256; r++ {
+		for g := 0; g < 256; g++ {
+			for b := 0; b < 256; b++ {
+				if histogram[r][g][b] != 0 {
+					histogramElements = append(histogramElements, newHistogramElement(r, g, b, histogram[r][g][b]))
+				}
+			}
+		}
+	}
+	return optimizePalette(optimizePalette(optimizePalette(palette.WebSafe)))
 }
 
 type lookupCacheElement struct {
