@@ -3,10 +3,11 @@ package main
 import (
 	"image"
 	"image/color"
-	"image/color/palette"
+	"math"
 )
 
 type byteQuad [4]uint8
+type byteQuadPalette []byteQuad
 
 func byte2dword(b uint8) uint32 {
 	d := uint32(b)
@@ -16,6 +17,24 @@ func byte2dword(b uint8) uint32 {
 
 func (bq byteQuad) RGBA() (r, g, b, a uint32) {
 	return byte2dword(bq[0]), byte2dword(bq[1]), byte2dword(bq[2]), byte2dword(bq[3])
+}
+
+func squareDiff(b1, b2 uint8) int {
+	t := int(b1) - int(b2)
+	return t * t
+}
+
+func (p byteQuadPalette) Index(c byteQuad) int {
+	bestDiff := math.MaxInt64
+	bestIndex := -1
+	for i, t := range p {
+		diff := squareDiff(c[0], t[0]) + squareDiff(c[1], t[1]) + squareDiff(c[2], t[2])
+		if diff < bestDiff {
+			bestDiff = diff
+			bestIndex = i
+		}
+	}
+	return bestIndex
 }
 
 type histogramElement struct {
@@ -57,35 +76,55 @@ func collectHistogram(i image.Image) {
 	}
 }
 
-func optimizePalette(p color.Palette) []color.Color {
+func calcNewColor(cluster []histogramElement) byteQuad {
+	var (
+		weightSum   [3]int64
+		quantitySum int64
+		c           byteQuad
+	)
+	for _, he := range cluster {
+		for i := 0; i < 3; i++ {
+			weightSum[i] += he.weight[i]
+		}
+		quantitySum += he.quantity
+	}
+	for i := 0; i < 3; i++ {
+		c[i] = uint8(weightSum[i] / quantitySum)
+	}
+	c[3] = 255
+	return c
+}
+
+func optimizePalette(p byteQuadPalette) []byteQuad {
 	clusters := make([][]histogramElement, len(p))
 	for _, he := range histogramElements {
 		i := p.Index(he.color)
 		clusters[i] = append(clusters[i], he)
 	}
-	result := make([]color.Color, 0, len(p))
+	result := make([]byteQuad, 0, len(p))
 	for _, cluster := range clusters {
 		if len(cluster) == 0 {
 			continue
 		}
-		var (
-			weightSum   [3]int64
-			quantitySum int64
-			c           byteQuad
-		)
-		for _, he := range cluster {
-			for i := 0; i < 3; i++ {
-				weightSum[i] += he.weight[i]
-			}
-			quantitySum += he.quantity
-		}
-		for i := 0; i < 3; i++ {
-			c[i] = uint8(weightSum[i] / quantitySum)
-		}
-		c[3] = 255
-		result = append(result, c)
+		result = append(result, calcNewColor(cluster))
 	}
 	return result
+}
+
+func getWebSafePalette() byteQuadPalette {
+	var result [216]byteQuad
+	for r := 0; r < 6; r++ {
+		for g := 0; g < 6; g++ {
+			for b := 0; b < 6; b++ {
+				index := r*36 + g*6 + b
+				result[index][0] = uint8(r * 51)
+				result[index][1] = uint8(g * 51)
+				result[index][2] = uint8(b * 51)
+				result[index][3] = 255
+			}
+		}
+	}
+	return result[:]
 }
 
 func generatePalette() []color.Color {
@@ -99,7 +138,12 @@ func generatePalette() []color.Color {
 			}
 		}
 	}
-	return optimizePalette(optimizePalette(optimizePalette(palette.WebSafe)))
+	p := optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
+	result := make([]color.Color, len(p))
+	for i := range p {
+		result[i] = p[i]
+	}
+	return result
 }
 
 type lookupCacheElement struct {
