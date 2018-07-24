@@ -6,25 +6,33 @@ import (
 	"image/color/palette"
 )
 
+type byteQuad [4]uint8
+
+func byte2dword(b uint8) uint32 {
+	d := uint32(b)
+	d |= d << 8
+	return d
+}
+
+func (bq byteQuad) RGBA() (r, g, b, a uint32) {
+	return byte2dword(bq[0]), byte2dword(bq[1]), byte2dword(bq[2]), byte2dword(bq[3])
+}
+
 type histogramElement struct {
-	color    color.RGBA
+	color    byteQuad
 	quantity int64
-	weightR  int64
-	weightG  int64
-	weightB  int64
+	weight   [3]int64
 }
 
 func newHistogramElement(r, g, b int, quantity int64) (he histogramElement) {
-	he.color = color.RGBA{
-		R: uint8(r),
-		G: uint8(g),
-		B: uint8(b),
-		A: 255,
-	}
+	he.color[0] = uint8(r)
+	he.color[1] = uint8(g)
+	he.color[2] = uint8(b)
+	he.color[3] = 255
 	he.quantity = quantity
-	he.weightR = int64(r) * quantity
-	he.weightG = int64(g) * quantity
-	he.weightB = int64(b) * quantity
+	for i := 0; i < 3; i++ {
+		he.weight[i] = int64(he.color[i]) * he.quantity
+	}
 	return he
 }
 
@@ -60,18 +68,22 @@ func optimizePalette(p color.Palette) []color.Color {
 		if len(cluster) == 0 {
 			continue
 		}
-		var weightRSum, weightGSum, weightBSum, quantitySum int64
+		var (
+			weightSum   [3]int64
+			quantitySum int64
+			c           byteQuad
+		)
 		for _, he := range cluster {
-			weightRSum += he.weightR
-			weightGSum += he.weightG
-			weightBSum += he.weightB
+			for i := 0; i < 3; i++ {
+				weightSum[i] += he.weight[i]
+			}
 			quantitySum += he.quantity
 		}
-		result = append(result, color.RGBA{
-			R: uint8(weightRSum / quantitySum),
-			G: uint8(weightGSum / quantitySum),
-			B: uint8(weightBSum / quantitySum),
-		})
+		for i := 0; i < 3; i++ {
+			c[i] = uint8(weightSum[i] / quantitySum)
+		}
+		c[3] = 255
+		result = append(result, c)
 	}
 	return result
 }
