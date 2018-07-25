@@ -175,10 +175,12 @@ func cachedIndex(p byteQuadPalette, c color.Color) int {
 }
 
 func newPalette(p []byteQuad) color.Palette {
-	result := make([]color.Color, len(p))
+	result := make([]color.Color, len(p)+1)
 	for i := range p {
-		result[i] = p[i]
+		result[i+1] = p[i]
 	}
+	var c byteQuad
+	result[0] = c
 	return result
 }
 
@@ -187,7 +189,7 @@ func generatePalettedImage(i image.Image, p []byteQuad) *image.Paletted {
 	for y := i.Bounds().Min.Y; y < i.Bounds().Max.Y; y++ {
 		bi := result.Stride * y
 		for x := i.Bounds().Min.X; x < i.Bounds().Max.X; x++ {
-			result.Pix[bi+x] = uint8(cachedIndex(p, i.At(x, y)))
+			result.Pix[bi+x] = uint8(cachedIndex(p, i.At(x, y)) + 1)
 		}
 	}
 	return result
