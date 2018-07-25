@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"sort"
 )
 
 type byteQuad [4]uint8
@@ -136,6 +137,14 @@ func getWebSafePalette() byteQuadPalette {
 	return result[:]
 }
 
+func calcBrightness(c byteQuad) float64 {
+	return float64(c[0])*0.299 + float64(c[1])*0.587 + float64(c[2])*0.114
+}
+
+func sortPalette(p []byteQuad) {
+	sort.Slice(p, func(i, j int) bool { return calcBrightness(p[i]) < calcBrightness(p[j]) })
+}
+
 func generatePalette() []byteQuad {
 	histogramElements = make([]histogramElement, 0, colors)
 	for r := 0; r < 256; r++ {
@@ -147,7 +156,9 @@ func generatePalette() []byteQuad {
 			}
 		}
 	}
-	return optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
+	p := optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
+	sortPalette(p)
+	return p
 }
 
 type lookupCacheElement struct {
