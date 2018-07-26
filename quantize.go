@@ -145,17 +145,22 @@ func sortPalette(p []byteQuad) {
 	sort.Slice(p, func(i, j int) bool { return calcBrightness(p[i]) < calcBrightness(p[j]) })
 }
 
-func generatePalette() []byteQuad {
-	histogramElements = make([]histogramElement, 0, colors)
+func createHistogramElements() []histogramElement {
+	result := make([]histogramElement, 0, colors)
 	for r := 0; r < 256; r++ {
 		for g := 0; g < 256; g++ {
 			for b := 0; b < 256; b++ {
 				if histogram[r][g][b] != 0 {
-					histogramElements = append(histogramElements, newHistogramElement(r, g, b, histogram[r][g][b]))
+					result = append(result, newHistogramElement(r, g, b, histogram[r][g][b]))
 				}
 			}
 		}
 	}
+	return result
+}
+
+func generatePalette() []byteQuad {
+	histogramElements = createHistogramElements()
 	p := optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
 	sortPalette(p)
 	return p
