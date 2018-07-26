@@ -173,7 +173,7 @@ type lookupCacheElement struct {
 
 var cache [32768]lookupCacheElement
 
-func initializeCache() {
+func invalidateCache() {
 	for i := range cache {
 		cache[i].index = -1
 	}

@@ -51,7 +51,7 @@ func main() {
 	collectHistogram(src)
 	palette := generatePalette()
 
-	initializeCache()
+	invalidateCache()
 
 	var dst gif.GIF
 	dst.Config = image.Config{
