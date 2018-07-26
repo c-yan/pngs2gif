@@ -86,7 +86,7 @@ func collectHistogram(i image.Image) {
 	}
 }
 
-func calcNewColor(cluster []histogramElement) byteQuad {
+func calcCentroid(cluster []histogramElement) byteQuad {
 	var (
 		weightSum   [3]int64
 		quantitySum int64
@@ -116,7 +116,7 @@ func optimizePalette(p byteQuadPalette) []byteQuad {
 		if len(cluster) == 0 {
 			continue
 		}
-		result = append(result, calcNewColor(cluster))
+		result = append(result, calcCentroid(cluster))
 	}
 	return result
 }
