@@ -29,7 +29,11 @@ func (p byteQuadPalette) fastIndex(c byteQuad) int {
 	bestDiff := math.MaxInt64
 	bestIndex := -1
 	for i, t := range p {
-		diff := squareDiff(c[0], t[0]) + squareDiff(c[1], t[1]) + squareDiff(c[2], t[2])
+		diff := squareDiff(c[0], t[0])
+		if diff > bestDiff {
+			continue
+		}
+		diff += squareDiff(c[1], t[1]) + squareDiff(c[2], t[2])
 		if diff < bestDiff {
 			bestDiff = diff
 			bestIndex = i
