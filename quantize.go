@@ -137,34 +137,7 @@ func divideCluster(cluster []histogramElement, color byteQuad, index int) (byteQ
 	return calcCentroid(c0), calcCentroid(c1)
 }
 
-func calcClusterErrors(p byteQuadPalette, clusters [][]histogramElement) [][3]int64 {
-	clusterErrors := make([][3]int64, len(p))
-	for i := range clusters {
-		pe := p[i]
-		for _, he := range clusters[i] {
-			for j := 0; j < 2; j++ {
-				clusterErrors[i][j] += int64(squareDiff(pe[j], he.color[j])) * he.quantity
-			}
-		}
-	}
-	return clusterErrors
-}
-
-func calcWorstClusterIndex(clusterErrors [][3]int64) int {
-	var worstError int64
-	worstIndex := -1
-	for i := range clusterErrors {
-		clusterError := clusterErrors[i]
-		errSum := clusterError[0] + clusterError[1] + clusterError[2]
-		if errSum > worstError {
-			worstError = errSum
-			worstIndex = i
-		}
-	}
-	return worstIndex
-}
-
-func calcWorstColorIndex(clusterError [3]int64) int {
+func calcWorstColorIndex(clusterError *[3]int64) int {
 	var worstError int64
 	worstIndex := -1
 	for i := 0; i < 3; i++ {
@@ -176,11 +149,31 @@ func calcWorstColorIndex(clusterError [3]int64) int {
 	return worstIndex
 }
 
+func calcWorstCluster(p byteQuadPalette, clusters [][]histogramElement) (int, int) {
+	worstError := int64(-1)
+	worstClusterIndex := -1
+	worstColorIndex := 0
+	for i := range clusters {
+		var clusterError [3]int64
+		pe := p[i]
+		for _, he := range clusters[i] {
+			for j := 0; j < 2; j++ {
+				clusterError[j] += int64(squareDiff(pe[j], he.color[j])) * he.quantity
+			}
+		}
+		errSum := clusterError[0] + clusterError[1] + clusterError[2]
+		if errSum > worstError {
+			worstError = errSum
+			worstClusterIndex = i
+			worstColorIndex = calcWorstColorIndex(&clusterError)
+		}
+	}
+	return worstClusterIndex, worstColorIndex
+}
+
 func populatePalette(p byteQuadPalette) []byteQuad {
 	p, clusters := optimizePalette(p)
-	clusterErrors := calcClusterErrors(p, clusters)
-	worstClusterIndex := calcWorstClusterIndex(clusterErrors)
-	worstColorIndex := calcWorstColorIndex(clusterErrors[worstClusterIndex])
+	worstClusterIndex, worstColorIndex := calcWorstCluster(p, clusters)
 	c1, c2 := divideCluster(clusters[worstClusterIndex], p[worstClusterIndex], worstColorIndex)
 	p[worstClusterIndex] = c1
 	return append(p, c2)
