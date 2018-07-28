@@ -29,6 +29,7 @@ func main() {
 	inputDir := "wara"
 	startFileIndex := 13
 	framesPerSec := 24
+	enableTransparentColorOptimizer := true
 	fileNames, err := listTargetFileNames(inputDir, startFileIndex)
 	if err != nil {
 		log.Fatal(err)
@@ -52,6 +53,7 @@ func main() {
 
 	var dst gif.GIF
 	prevFrameIndex := 0
+	var prevFrameData []uint8
 	for i := range fileNames {
 		in, err := os.Open(filepath.Join(inputDir, fileNames[i]))
 		if err != nil {
@@ -69,7 +71,24 @@ func main() {
 				Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
 			}
 		}
-		dst.Image = append(dst.Image, generatePalettedImage(src, palette))
+		pi := generatePalettedImage(src, palette)
+		if enableTransparentColorOptimizer {
+			if i == 0 {
+				prevFrameData = pi.Pix
+			} else {
+				tmpFrameData := make([]uint8, len(pi.Pix))
+				for i := range prevFrameData {
+					if prevFrameData[i] == pi.Pix[i] {
+						tmpFrameData[i] = 0
+					} else {
+						tmpFrameData[i] = pi.Pix[i]
+					}
+				}
+				prevFrameData = pi.Pix
+				pi.Pix = tmpFrameData
+			}
+		}
+		dst.Image = append(dst.Image, pi)
 		dst.Delay = append(dst.Delay, (i*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
 		prevFrameIndex = i
 	}
