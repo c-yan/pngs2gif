@@ -25,10 +25,83 @@ func squareDiff(b1, b2 uint8) int {
 	return t * t
 }
 
+var candidaes [32768][]int
+
+func invalidateCandidates() {
+	for i := range candidaes {
+		candidaes[i] = nil
+	}
+}
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+func calcMaxDistance(x byte, y [2]byte) int {
+	if x < y[0] {
+		return int(y[1]) - int(x)
+	} else if x > y[1] {
+		return int(x) - int(y[0])
+	} else {
+		return max(int(y[1])-int(x), int(x)-int(y[0]))
+	}
+}
+
+func calcMinDistance(x byte, y [2]byte) int {
+	if x < y[0] {
+		return int(y[0]) - int(x)
+	} else if x > y[1] {
+		return int(x) - int(y[1])
+	} else {
+		return 0
+	}
+}
+
+func calculateCandidates(p byteQuadPalette, c byteQuad) []int {
+	var result []int
+	bounds := [3][2]byte{{c[0] & 0xf8, c[0]&0xf8 + 7}, {c[1] & 0xf8, c[1]&0xf8 + 7}, {c[2] & 0xf8, c[2]&0xf8 + 7}}
+	minMaxError := math.MaxInt64
+	for _, pe := range p {
+		dr := calcMaxDistance(pe[0], bounds[0])
+		e := dr * dr
+		if e > minMaxError {
+			continue
+		}
+		dg := calcMaxDistance(pe[1], bounds[1])
+		db := calcMaxDistance(pe[2], bounds[2])
+		e += dg*dg + db*db
+		if e < minMaxError {
+			minMaxError = e
+		}
+	}
+	for i := range p {
+		dr := calcMinDistance(p[i][0], bounds[0])
+		e := dr * dr
+		if e > minMaxError {
+			continue
+		}
+		dg := calcMinDistance(p[i][1], bounds[1])
+		db := calcMinDistance(p[i][2], bounds[2])
+		e += dg*dg + db*db
+		if e < minMaxError {
+			result = append(result, i)
+		}
+	}
+	return result
+}
+
 func (p byteQuadPalette) fastIndex(c byteQuad) int {
+	block := (int(c[0])&0xf8)<<7 + (int(c[1])&0xf8)<<2 + int(c[2])>>3
+	if len(candidaes[block]) == 0 {
+		candidaes[block] = calculateCandidates(p, c)
+	}
 	bestDiff := math.MaxInt64
 	bestIndex := -1
-	for i, t := range p {
+	for _, i := range candidaes[block] {
+		t := p[i]
 		diff := squareDiff(c[0], t[0])
 		if diff > bestDiff {
 			continue
@@ -124,6 +197,7 @@ func optimizePalette(p byteQuadPalette) ([]byteQuad, [][]histogramElement) {
 		newPalette = append(newPalette, calcCentroid(cluster))
 		newCluster = append(newCluster, cluster)
 	}
+	invalidateCandidates()
 	return newPalette, newCluster
 }
 
@@ -177,6 +251,7 @@ func populatePalette(p byteQuadPalette) []byteQuad {
 	p, clusters := optimizePalette(p)
 	worstClusterIndex, worstColorIndex := calcWorstCluster(p, clusters)
 	c1, c2 := divideCluster(clusters[worstClusterIndex], p[worstClusterIndex], worstColorIndex)
+	invalidateCandidates()
 	p[worstClusterIndex] = c1
 	return append(p, c2)
 }
