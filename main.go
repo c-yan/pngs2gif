@@ -34,8 +34,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	prevFrameIndex := 0
-	currentFrameIndex := 0
+	for i := range fileNames {
+		in, err := os.Open(filepath.Join(inputDir, fileNames[i]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		src, err := png.Decode(in)
+		if err != nil {
+			log.Fatal(err)
+		}
+		collectHistogram(src)
+		in.Close()
+	}
+
+	palette := generatePalette()
+	invalidateCache()
 
 	in, err := os.Open(filepath.Join(inputDir, fileNames[0]))
 	if err != nil {
@@ -48,17 +61,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	collectHistogram(src)
-	palette := generatePalette()
-
-	invalidateCache()
-
 	var dst gif.GIF
 	dst.Config = image.Config{
 		ColorModel: newPalette(palette),
 		Width:      src.Bounds().Max.X - src.Bounds().Min.X,
 		Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
 	}
+	prevFrameIndex := 0
+	currentFrameIndex := 0
 	dst.Image = append(dst.Image, generatePalettedImage(src, palette))
 	dst.Delay = append(dst.Delay, (currentFrameIndex*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
 	prevFrameIndex = currentFrameIndex
