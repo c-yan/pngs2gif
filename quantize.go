@@ -112,7 +112,7 @@ func calcCentroid(cluster []histogramElement) byteQuad {
 func optimizePalette(p byteQuadPalette) ([]byteQuad, [][]histogramElement) {
 	clusters := make([][]histogramElement, len(p))
 	for _, he := range histogramElements {
-		i := p.index(he.color)
+		i := p.fastIndex(he.color)
 		clusters[i] = append(clusters[i], he)
 	}
 	newPalette := make([]byteQuad, 0, len(p))
