@@ -43,36 +43,36 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		collectHistogram(src)
 		in.Close()
+		collectHistogram(src)
 	}
 
 	palette := generatePalette()
 	invalidateCache()
 
-	in, err := os.Open(filepath.Join(inputDir, fileNames[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer in.Close()
-
-	src, err := png.Decode(in)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	var dst gif.GIF
-	dst.Config = image.Config{
-		ColorModel: newPalette(palette),
-		Width:      src.Bounds().Max.X - src.Bounds().Min.X,
-		Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
-	}
 	prevFrameIndex := 0
-	currentFrameIndex := 0
-	dst.Image = append(dst.Image, generatePalettedImage(src, palette))
-	dst.Delay = append(dst.Delay, (currentFrameIndex*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
-	prevFrameIndex = currentFrameIndex
-	currentFrameIndex++
+	for i := range fileNames {
+		in, err := os.Open(filepath.Join(inputDir, fileNames[i]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		src, err := png.Decode(in)
+		if err != nil {
+			log.Fatal(err)
+		}
+		in.Close()
+		if i == 0 {
+			dst.Config = image.Config{
+				ColorModel: newPalette(palette),
+				Width:      src.Bounds().Max.X - src.Bounds().Min.X,
+				Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
+			}
+		}
+		dst.Image = append(dst.Image, generatePalettedImage(src, palette))
+		dst.Delay = append(dst.Delay, (i*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
+		prevFrameIndex = i
+	}
 
 	out, err := os.Create(inputDir + ".gif")
 	if err != nil {
