@@ -109,36 +109,81 @@ func calcCentroid(cluster []histogramElement) byteQuad {
 	return c
 }
 
-func optimizePalette(p byteQuadPalette) []byteQuad {
+func optimizePalette(p byteQuadPalette) ([]byteQuad, [][]histogramElement) {
 	clusters := make([][]histogramElement, len(p))
 	for _, he := range histogramElements {
 		i := p.index(he.color)
 		clusters[i] = append(clusters[i], he)
 	}
-	result := make([]byteQuad, 0, len(p))
+	newPalette := make([]byteQuad, 0, len(p))
 	for _, cluster := range clusters {
 		if len(cluster) == 0 {
 			continue
 		}
-		result = append(result, calcCentroid(cluster))
+		newPalette = append(newPalette, calcCentroid(cluster))
 	}
-	return result
+	return newPalette, clusters
 }
 
-func getWebSafePalette() byteQuadPalette {
-	var result [216]byteQuad
-	for r := 0; r < 6; r++ {
-		for g := 0; g < 6; g++ {
-			for b := 0; b < 6; b++ {
-				index := r*36 + g*6 + b
-				result[index][0] = uint8(r * 51)
-				result[index][1] = uint8(g * 51)
-				result[index][2] = uint8(b * 51)
-				result[index][3] = 255
+func divideCluster(cluster []histogramElement, color byteQuad, index int) (byteQuad, byteQuad) {
+	var c0, c1 []histogramElement
+	for _, he := range cluster {
+		if color[index] < he.color[index] {
+			c0 = append(c0, he)
+		} else {
+			c1 = append(c1, he)
+		}
+	}
+	return calcCentroid(c0), calcCentroid(c1)
+}
+
+func calcClusterErrors(p byteQuadPalette, clusters [][]histogramElement) [][3]int64 {
+	clusterErrors := make([][3]int64, len(p))
+	for i := range clusters {
+		pe := p[i]
+		for _, he := range clusters[i] {
+			for j := 0; j < 2; j++ {
+				clusterErrors[i][j] += int64(squareDiff(pe[j], he.color[j])) * he.quantity
 			}
 		}
 	}
-	return result[:]
+	return clusterErrors
+}
+
+func calcWorstClusterIndex(clusterErrors [][3]int64) int {
+	var worstError int64
+	worstIndex := -1
+	for i := range clusterErrors {
+		clusterError := clusterErrors[i]
+		errSum := clusterError[0] + clusterError[1] + clusterError[2]
+		if errSum > worstError {
+			worstError = errSum
+			worstIndex = i
+		}
+	}
+	return worstIndex
+}
+
+func calcWorstColorIndex(clusterError [3]int64) int {
+	var worstError int64
+	worstIndex := -1
+	for i := 0; i < 3; i++ {
+		if clusterError[i] > worstError {
+			worstError = clusterError[i]
+			worstIndex = i
+		}
+	}
+	return worstIndex
+}
+
+func populatePalette(p byteQuadPalette) []byteQuad {
+	p, clusters := optimizePalette(p)
+	clusterErrors := calcClusterErrors(p, clusters)
+	worstClusterIndex := calcWorstClusterIndex(clusterErrors)
+	worstColorIndex := calcWorstColorIndex(clusterErrors[worstClusterIndex])
+	c1, c2 := divideCluster(clusters[worstClusterIndex], p[worstClusterIndex], worstColorIndex)
+	p[worstClusterIndex] = c1
+	return append(p, c2)
 }
 
 func calcBrightness(c byteQuad) float64 {
@@ -165,7 +210,16 @@ func createHistogramElements() []histogramElement {
 
 func generatePalette() []byteQuad {
 	histogramElements = createHistogramElements()
-	p := optimizePalette(optimizePalette(optimizePalette(getWebSafePalette())))
+	p := make([]byteQuad, 1)
+	for {
+		p = populatePalette(p)
+		if len(p) == 255 {
+			break
+		}
+	}
+	for i := 0; i < 3; i++ {
+		p, _ = optimizePalette(p)
+	}
 	sortPalette(p)
 	return p
 }
