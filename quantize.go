@@ -116,13 +116,15 @@ func optimizePalette(p byteQuadPalette) ([]byteQuad, [][]histogramElement) {
 		clusters[i] = append(clusters[i], he)
 	}
 	newPalette := make([]byteQuad, 0, len(p))
+	newCluster := make([][]histogramElement, 0, len(p))
 	for _, cluster := range clusters {
 		if len(cluster) == 0 {
 			continue
 		}
 		newPalette = append(newPalette, calcCentroid(cluster))
+		newCluster = append(newCluster, cluster)
 	}
-	return newPalette, clusters
+	return newPalette, newCluster
 }
 
 func divideCluster(cluster []histogramElement, color byteQuad, index int) (byteQuad, byteQuad) {
