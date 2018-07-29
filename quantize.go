@@ -233,7 +233,7 @@ func calcWorstCluster(p byteQuadPalette, clusters [][]histogramElement) (int, in
 		var clusterError [3]int64
 		pe := p[i]
 		for _, he := range clusters[i] {
-			for j := 0; j < 2; j++ {
+			for j := 0; j < 3; j++ {
 				clusterError[j] += int64(squareDiff(pe[j], he.color[j])) * he.quantity
 			}
 		}
