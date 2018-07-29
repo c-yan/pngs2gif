@@ -214,9 +214,9 @@ func divideCluster(cluster []histogramElement, color byteQuad, index int) (byteQ
 }
 
 func calcWorstColorIndex(clusterError *[3]int64) int {
-	var worstError int64
-	worstIndex := -1
-	for i := 0; i < 3; i++ {
+	worstError := clusterError[0]
+	worstIndex := 0
+	for i := 1; i < 3; i++ {
 		if clusterError[i] > worstError {
 			worstError = clusterError[i]
 			worstIndex = i
