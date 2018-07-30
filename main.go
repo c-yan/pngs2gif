@@ -13,30 +13,9 @@ import (
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 
-func main() {
-	flag.Parse()
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
-
-	inputDir := "wara"
-	startFileIndex := 13
-	framesPerSec := 24
-	enableTransparentColorOptimizer := true
-	fileNames, err := listTargetFileNames(inputDir, startFileIndex)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func collectHistograms(c *config, fileNames []string) {
 	for i := range fileNames {
-		in, err := os.Open(filepath.Join(inputDir, fileNames[i]))
+		in, err := os.Open(filepath.Join(c.inputDir, fileNames[i]))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -47,15 +26,18 @@ func main() {
 		in.Close()
 		collectHistogram(src)
 	}
+}
+
+func createGifData(c *config, fileNames []string) *gif.GIF {
+	var dst gif.GIF
 
 	palette := generatePalette()
 	invalidateCache()
 
-	var dst gif.GIF
 	prevFrameIndex := 0
 	var prevFrameData []uint8
 	for i := range fileNames {
-		in, err := os.Open(filepath.Join(inputDir, fileNames[i]))
+		in, err := os.Open(filepath.Join(c.inputDir, fileNames[i]))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,7 +54,7 @@ func main() {
 			}
 		}
 		pi := generatePalettedImage(src, palette)
-		if enableTransparentColorOptimizer {
+		if c.enableTransparentColorOptimizer {
 			if i == 0 {
 				prevFrameData = pi.Pix
 			} else {
@@ -89,18 +71,58 @@ func main() {
 			}
 		}
 		dst.Image = append(dst.Image, pi)
-		dst.Delay = append(dst.Delay, (i*100/framesPerSec)-(prevFrameIndex*100/framesPerSec))
+		dst.Delay = append(dst.Delay, (i*100/c.framesPerSec)-(prevFrameIndex*100/c.framesPerSec))
 		prevFrameIndex = i
 	}
+	return &dst
+}
 
-	out, err := os.Create(inputDir + ".gif")
+func saveGifData(c *config, dst *gif.GIF) {
+	out, err := os.Create(c.inputDir + ".gif")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer out.Close()
 
-	err = gif.EncodeAll(out, &dst)
+	err = gif.EncodeAll(out, dst)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+type config struct {
+	inputDir                        string
+	startFileIndex                  int
+	framesPerSec                    int
+	enableTransparentColorOptimizer bool
+}
+
+func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
+	c := config{
+		inputDir:                        "wara",
+		startFileIndex:                  13,
+		framesPerSec:                    24,
+		enableTransparentColorOptimizer: true,
+	}
+
+	fileNames, err := listTargetFileNames(c.inputDir, c.startFileIndex)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	collectHistograms(&c, fileNames)
+	dst := createGifData(&c, fileNames)
+	saveGifData(&c, dst)
 }
