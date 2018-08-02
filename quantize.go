@@ -278,9 +278,29 @@ func createHistogramElements() []histogramElement {
 	return result
 }
 
+func getSeedPalette() byteQuadPalette {
+	var result [64]byteQuad
+	var r, g, b uint
+	for r = 0; r < 4; r++ {
+		for g = 0; g < 4; g++ {
+			for b = 0; b < 4; b++ {
+				index := r*16 + g*4 + b
+				result[index][0] = uint8(255 >> (r * 2))
+				result[index][1] = uint8(255 >> (g * 2))
+				result[index][2] = uint8(255 >> (b * 2))
+				result[index][3] = 255
+			}
+		}
+	}
+	return result[:]
+}
+
 func generatePalette() []byteQuad {
 	histogramElements = createHistogramElements()
-	p := make([]byteQuad, 1)
+	p := getSeedPalette()
+	for i := 0; i < 2; i++ {
+		p, _ = optimizePalette(p)
+	}
 	for {
 		p = populatePalette(p)
 		if len(p) == 255 {
