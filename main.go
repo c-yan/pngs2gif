@@ -31,18 +31,18 @@ func collectHistograms(c *config, fileNames []string) {
 func doTransparentColorOptimization(p *image.Paletted, prevFrameData *[]uint8) {
 	if len(*prevFrameData) == 0 {
 		*prevFrameData = p.Pix
-	} else {
-		tmpFrameData := make([]uint8, len(p.Pix))
-		for i := range *prevFrameData {
-			if (*prevFrameData)[i] == p.Pix[i] {
-				tmpFrameData[i] = 0
-			} else {
-				tmpFrameData[i] = p.Pix[i]
-			}
-		}
-		*prevFrameData = p.Pix
-		p.Pix = tmpFrameData
+		return
 	}
+	tmpFrameData := make([]uint8, len(p.Pix))
+	for i := range *prevFrameData {
+		if (*prevFrameData)[i] == p.Pix[i] {
+			tmpFrameData[i] = 0
+		} else {
+			tmpFrameData[i] = p.Pix[i]
+		}
+	}
+	*prevFrameData = p.Pix
+	p.Pix = tmpFrameData
 }
 
 func createGifData(c *config, fileNames []string) *gif.GIF {
