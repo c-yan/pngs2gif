@@ -28,21 +28,27 @@ func collectHistograms(c *config, fileNames []string) {
 	}
 }
 
-func doTransparentColorOptimization(p *image.Paletted, prevFrameData *[]uint8) {
+func doTransparentColorOptimization(p *image.Paletted, prevFrameData *[]uint8) bool {
 	if len(*prevFrameData) == 0 {
 		*prevFrameData = p.Pix
-		return
+		return false
 	}
+	noDiffs := true
 	tmpFrameData := make([]uint8, len(p.Pix))
 	for i := range *prevFrameData {
 		if (*prevFrameData)[i] == p.Pix[i] {
 			tmpFrameData[i] = 0
 		} else {
 			tmpFrameData[i] = p.Pix[i]
+			noDiffs = false
 		}
+	}
+	if noDiffs {
+		return true
 	}
 	*prevFrameData = p.Pix
 	p.Pix = tmpFrameData
+	return false
 }
 
 func createGifData(c *config, fileNames []string) *gif.GIF {
@@ -72,7 +78,10 @@ func createGifData(c *config, fileNames []string) *gif.GIF {
 		}
 		pi := generatePalettedImage(src, palette)
 		if c.enableTransparentColorOptimizer {
-			doTransparentColorOptimization(pi, &prevFrameData)
+			noDiffs := doTransparentColorOptimization(pi, &prevFrameData)
+			if c.enableFrameSkipOptimizer && noDiffs {
+				continue
+			}
 		}
 		dst.Image = append(dst.Image, pi)
 		dst.Delay = append(dst.Delay, (i*100/c.framesPerSec)-(prevFrameIndex*100/c.framesPerSec))
@@ -99,6 +108,7 @@ type config struct {
 	startFileIndex                  int
 	framesPerSec                    int
 	enableTransparentColorOptimizer bool
+	enableFrameSkipOptimizer        bool
 }
 
 func main() {
@@ -119,6 +129,7 @@ func main() {
 		startFileIndex:                  13,
 		framesPerSec:                    24,
 		enableTransparentColorOptimizer: true,
+		enableFrameSkipOptimizer:        true,
 	}
 
 	fileNames, err := listTargetFileNames(c.inputDir, c.startFileIndex)
