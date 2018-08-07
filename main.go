@@ -28,26 +28,81 @@ func collectHistograms(c *config, fileNames []string) {
 	}
 }
 
-func doTransparentColorOptimization(p *image.Paletted, prevFrameData *[]uint8) bool {
+func doRectangleOptimization(p *image.Paletted, tmpFrameData []uint8, rows, cols []byte) (*image.Paletted, bool) {
+	minX := -1
+	for x := 0; x < p.Bounds().Max.X; x++ {
+		if cols[x] != 0 {
+			minX = x
+			break
+		}
+	}
+	if minX == -1 {
+		return nil, true
+	}
+	maxX := 0
+	for x := p.Bounds().Max.X - 1; x >= 0; x-- {
+		if cols[x] != 0 {
+			maxX = x + 1
+			break
+		}
+	}
+	minY := 0
+	for y := 0; y < p.Bounds().Max.Y; y++ {
+		if rows[y] != 0 {
+			minY = y
+			break
+		}
+	}
+	maxY := 0
+	for y := p.Bounds().Max.Y - 1; y >= 0; y-- {
+		if rows[y] != 0 {
+			maxY = y + 1
+			break
+		}
+	}
+	newPi := image.NewPaletted(image.Rect(minX, minY, maxX, maxY), p.Palette)
+	for y := minY; y < maxY; y++ {
+		bi1 := newPi.Stride * (y - minY)
+		bi2 := p.Stride * y
+		for x := minX; x < maxX; x++ {
+			newPi.Pix[bi1+x-minX] = tmpFrameData[bi2+x]
+		}
+	}
+	return newPi, false
+}
+
+func doTransparentColorOptimization(c *config, p *image.Paletted, prevFrameData *[]uint8) bool {
 	if len(*prevFrameData) == 0 {
 		*prevFrameData = p.Pix
 		return false
 	}
-	noDiffs := true
+	rows := make([]byte, p.Bounds().Max.Y)
+	cols := make([]byte, p.Bounds().Max.X)
 	tmpFrameData := make([]uint8, len(p.Pix))
-	for i := range *prevFrameData {
-		if (*prevFrameData)[i] == p.Pix[i] {
-			tmpFrameData[i] = 0
-		} else {
-			tmpFrameData[i] = p.Pix[i]
-			noDiffs = false
+	for y := 0; y < p.Bounds().Max.Y; y++ {
+		bi := p.Stride * y
+		for x := 0; x < p.Bounds().Max.X; x++ {
+			i := bi + x
+			if (*prevFrameData)[i] == p.Pix[i] {
+				tmpFrameData[i] = 0
+			} else {
+				tmpFrameData[i] = p.Pix[i]
+			}
+			rows[y] |= tmpFrameData[i]
+			cols[x] |= tmpFrameData[i]
 		}
 	}
-	if noDiffs {
-		return true
+	if c.enableRectangleOptimizer {
+		newPi, noDiffs := doRectangleOptimization(p, tmpFrameData, rows, cols)
+		if noDiffs {
+			return true
+		}
+		*prevFrameData = p.Pix
+		*p = *newPi
+	} else {
+		*prevFrameData = p.Pix
+		p.Pix = tmpFrameData
 	}
-	*prevFrameData = p.Pix
-	p.Pix = tmpFrameData
 	return false
 }
 
@@ -78,8 +133,8 @@ func createGifData(c *config, fileNames []string) *gif.GIF {
 		}
 		pi := generatePalettedImage(src, palette)
 		if c.enableTransparentColorOptimizer {
-			noDiffs := doTransparentColorOptimization(pi, &prevFrameData)
-			if c.enableFrameSkipOptimizer && noDiffs {
+			noDiffs := doTransparentColorOptimization(c, pi, &prevFrameData)
+			if c.enableRectangleOptimizer && noDiffs {
 				continue
 			}
 		}
@@ -108,7 +163,7 @@ type config struct {
 	startFileIndex                  int
 	framesPerSec                    int
 	enableTransparentColorOptimizer bool
-	enableFrameSkipOptimizer        bool
+	enableRectangleOptimizer        bool
 }
 
 func main() {
@@ -129,7 +184,7 @@ func main() {
 		startFileIndex:                  13,
 		framesPerSec:                    24,
 		enableTransparentColorOptimizer: true,
-		enableFrameSkipOptimizer:        true,
+		enableRectangleOptimizer:        true,
 	}
 
 	fileNames, err := listTargetFileNames(c.inputDir, c.startFileIndex)
