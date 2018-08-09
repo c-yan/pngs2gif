@@ -130,6 +130,10 @@ func createGifData(c *config, fileNames []string) *gif.GIF {
 				Width:      src.Bounds().Max.X - src.Bounds().Min.X,
 				Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
 			}
+		} else {
+			if dst.Config.Width != src.Bounds().Max.X-src.Bounds().Min.X || dst.Config.Height != src.Bounds().Max.Y-src.Bounds().Min.Y {
+				log.Fatal("Image size error")
+			}
 		}
 		pi := generatePalettedImage(src, palette)
 		if c.enableTransparentColorOptimizer {
