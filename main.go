@@ -106,6 +106,19 @@ func doTransparentColorOptimization(c *config, p *image.Paletted, prevFrameData 
 	return false
 }
 
+func loadImage(c *config, path string) (image.Image, error) {
+	in, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	src, err := png.Decode(in)
+	if err != nil {
+		return nil, err
+	}
+	in.Close()
+	return src, nil
+}
+
 func createGifData(c *config, fileNames []string) *gif.GIF {
 	var dst gif.GIF
 
@@ -115,15 +128,10 @@ func createGifData(c *config, fileNames []string) *gif.GIF {
 	prevFrameIndex := 0
 	var prevFrameData []uint8
 	for i := range fileNames {
-		in, err := os.Open(filepath.Join(c.inputDir, fileNames[i]))
+		src, err := loadImage(c, filepath.Join(c.inputDir, fileNames[i]))
 		if err != nil {
 			log.Fatal(err)
 		}
-		src, err := png.Decode(in)
-		if err != nil {
-			log.Fatal(err)
-		}
-		in.Close()
 		if i == 0 {
 			dst.Config = image.Config{
 				ColorModel: newPalette(palette),
