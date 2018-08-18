@@ -116,6 +116,13 @@ func loadImage(c *config, path string) (image.Image, error) {
 	return src, nil
 }
 
+func validateImage(config image.Config, i image.Image) error {
+	if config.Width != i.Bounds().Max.X-i.Bounds().Min.X || config.Height != i.Bounds().Max.Y-i.Bounds().Min.Y {
+		return errors.New("Image size error")
+	}
+	return nil
+}
+
 func createGifData(c *config, fileNames []string) (*gif.GIF, error) {
 	var dst gif.GIF
 
@@ -136,8 +143,9 @@ func createGifData(c *config, fileNames []string) (*gif.GIF, error) {
 				Height:     src.Bounds().Max.Y - src.Bounds().Min.Y,
 			}
 		} else {
-			if dst.Config.Width != src.Bounds().Max.X-src.Bounds().Min.X || dst.Config.Height != src.Bounds().Max.Y-src.Bounds().Min.Y {
-				return nil, errors.New("Image size error")
+			err := validateImage(dst.Config, src)
+			if err != nil {
+				return nil, err
 			}
 		}
 		pi := generatePalettedImage(src, palette)
