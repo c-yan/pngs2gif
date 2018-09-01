@@ -307,6 +307,7 @@ func generatePalette() []byteQuad {
 				}
 			}
 		}
+		sortPalette(result)
 		return result
 	}
 
