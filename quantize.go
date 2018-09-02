@@ -295,22 +295,7 @@ func getSeedPalette() byteQuadPalette {
 	return result[:]
 }
 
-func generatePalette() []byteQuad {
-	if colors < 256 {
-		result := make([]byteQuad, 0, colors)
-		for r := 0; r < 256; r++ {
-			for g := 0; g < 256; g++ {
-				for b := 0; b < 256; b++ {
-					if histogram[r][g][b] != 0 {
-						result = append(result, byteQuad{uint8(r), uint8(g), uint8(b), 255})
-					}
-				}
-			}
-		}
-		sortPalette(result)
-		return result
-	}
-
+func generateOptimizedPalette() []byteQuad {
 	histogramElements = createHistogramElements()
 	p := getSeedPalette()
 	for i := 0; i < 2; i++ {
@@ -327,6 +312,24 @@ func generatePalette() []byteQuad {
 	}
 	sortPalette(p)
 	return p
+}
+
+func generatePalette() []byteQuad {
+	if colors < 256 {
+		result := make([]byteQuad, 0, colors)
+		for r := 0; r < 256; r++ {
+			for g := 0; g < 256; g++ {
+				for b := 0; b < 256; b++ {
+					if histogram[r][g][b] != 0 {
+						result = append(result, byteQuad{uint8(r), uint8(g), uint8(b), 255})
+					}
+				}
+			}
+		}
+		sortPalette(result)
+		return result
+	}
+	return generateOptimizedPalette()
 }
 
 type lookupCacheElement struct {
